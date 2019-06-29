@@ -1,0 +1,131 @@
+<html>
+
+<head>
+    <title>Realtime BITalino Data with RMS and Bayesian filtering</title>
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
+    <meta charset='utf-8' />
+    <script src="./d3.v4.min.js"></script>
+    <style>
+        body {
+            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+        }
+
+        #chart {
+            max-width: 600px;
+            max-height: 400px;
+        }
+    </style>
+</head>
+<script language="javascript" type="text/javascript" src="jquery.js"></script>
+<script language="javascript" type="text/javascript" src="jquery.flot.js"></script>
+
+<body>
+    <div>
+        <h1>BITalino channels with RMS and Bayesian filtering</h1>
+    </div>
+    <div id="chart"></div>
+    <script src="d3-rt-line-chart.js"></script>
+    <script>
+        var lineArr = [];
+        var lineData;
+        var MAX_LENGTH = 100; // 100
+        var SHIFT_LENGTH = 30; // 30
+        var duration = 5; // 500
+        var chart = realTimeLineChart();
+
+        // Establish a connection to the ServerBIT
+        var ws = new WebSocket("ws://localhost:9001/");
+
+        ws.onopen = function () {};
+
+        // Process the responses sent by the ServerBIT
+        ws.onmessage = function (e) {
+            data = JSON.parse(e.data)
+            console.log('DEBUG:BITalino: ' + data);
+
+            // var now = new Date();
+            // lineData = {
+            //     time: now,
+            //     A1: data.A1[0],
+            //     A2: data.A2[0],
+            //     A3: data.A3[0],
+            //     A4: data.A4[0],
+            //     A5: data.A5[0],
+            //     A6: data.A6[0]
+            // };
+
+            for (var i = 0; i < data.A1.length; i += 4) {
+                var now = new Date();
+                lineData = {
+                    time: now,
+                    A1: data.A1[i],
+                    A2: data.A2[i],
+                    A3: data.A3[i],
+                    A4: data.A4[i],
+                    A5: data.A5[i],
+                    A6: data.A6[i]
+                };
+            }
+            // lineArr.push(lineData);
+
+            // if (lineArr.length > SHIFT_LENGTH) {
+            //     lineArr.shift();
+            // }
+            // d3.select("#chart").datum(lineArr).call(chart);
+            // // }
+        };
+
+        function randomNumberBounds(min, max) {
+            return Math.floor(Math.random() * max) + min;
+        }
+
+        function seedData() {
+            var now = new Date();
+            for (var i = 0; i < MAX_LENGTH; ++i) {
+                lineArr.push({
+                    time: new Date(now.getTime() - ((MAX_LENGTH - i) * duration)),
+                    A1: randomNumberBounds(0, 700),
+                    A2: randomNumberBounds(0, 700),
+                    A3: randomNumberBounds(0, 200),
+                    A4: randomNumberBounds(0, 1000),
+                    A5: randomNumberBounds(0, 200),
+                    A6: randomNumberBounds(0, 200)
+                });
+            }
+        }
+
+
+        function updateData() {
+
+            lineArr.push(lineData);
+
+            if (lineArr.length > 30) {
+                lineArr.shift();
+            }
+            d3.select("#chart").datum(lineArr).call(chart);
+        }
+
+        function resize() {
+            if (d3.select("#chart svg").empty()) {
+                return;
+            }
+            chart.width(+d3.select("#chart").style("width").replace(/(px)/g, ""));
+            d3.select("#chart").call(chart);
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            seedData();
+            window.setInterval(updateData, 500);
+            d3.select("#chart").datum(lineArr).call(chart);
+            d3.select(window).on('resize', resize);
+        });
+
+        // Detect when the page is unloaded or close
+        window.onbeforeunload = function () {
+            ws.onclose = function () {};
+            ws.close()
+        };
+    </script>
+</body>
+
+</html>

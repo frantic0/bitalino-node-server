@@ -1,0 +1,72 @@
+<html>
+
+<head>
+    <title>Realtime BITalino Data with RMS and Bayesian filtering</title>
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
+    <meta charset='utf-8' />
+    <script src="./d3.v4.min.js"></script>
+    <style>
+        body {
+            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+        }
+
+        #chart {
+            max-width: 600px;
+            max-height: 400px;
+        }
+    </style>
+</head>
+<script language="javascript" type="text/javascript" src="jquery.js"></script>
+<script language="javascript" type="text/javascript" src="jquery.flot.js"></script>
+<script type="text/javascript">
+    // Establish a connection to the ServerBIT
+    var ws = new WebSocket("ws://localhost:9001/");
+
+    ws.onopen = function () {};
+
+    // Process the responses sent by the ServerBIT
+    ws.onmessage = function (e) {
+        data = JSON.parse(e.data)
+        // console.log('DEBUG:BITalino: ' + data);
+        let a = [
+            [],
+            [],
+            [],
+            [],
+            [],
+            []
+        ];
+        for (var i = 0; i < data.A1.length; i += 1) { // 250 samples per message
+            a[0][i] = [i, (data.A1[i] / 512) - 1.0]; // EMG: normalize [-1.0, 1.0]: d/512 - 1.0: 
+            a[1][i] = [i, (data.A2[i] / 512) - 1.0]; // ECG
+            a[2][i] = [i, (data.A3[i] / 512) - 1.0]; // EDA/GSA 
+            a[3][i] = [i, (data.A4[i] / 512) - 1.0]; // EEG
+            a[4][i] = [i, (data.A5[i] / 32) - 1.0]; // ACC
+            a[5][i] = [i, data.A6[i] / 64]; // LUX: normalize to [0.0, 1.0] – /64:
+        }
+
+        $.plot($("#placeholder"), a, {
+            yaxis: {
+                min: -1.5,
+                max: 1.5
+            },
+            // Violet, Red,    
+            colors: ["#FF7FF0", "#FF0000", "#9400D3", "#0000FF", "#00FF00", "#FFFF00"],
+        });
+    };
+
+    // Detect when the page is unloaded or close
+    window.onbeforeunload = function () {
+        ws.onclose = function () {};
+        ws.close()
+    };
+</script>
+
+<body>
+    <div>
+        <h1> BITalino Realtime Data with RMS and Bayesian filtering</h1>
+    </div>
+    <div id="placeholder" style="width:600px;height:300px;"></div>
+</body>
+
+</html>
